@@ -59,6 +59,266 @@ And a numbered list like this:
 
 And here are my results . . .
 
-```{r}
-# intersperse relevant figures and text
+---
+title: "Final Project"
+author: "DARIO DIDI"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+
+library(lubridate)
+
+library(ical) 
+
 ```
+
+
+```{r}
+
+
+
+
+orig_cal <-ical_parse_df(file = "/Users/dariodidi/Downloads/ddidi20@amherst.edu.ics") %>%
+           mutate(start_datetime = with_tz(start, tzone = "America/New_York")
+                 , end_datetime = with_tz(end, tzone = "America/New_York")
+                 , length_sec = end_datetime - start_datetime
+                 , length_min = length_sec/60
+                 , length_hrs = length_min/60
+                 , date = floor_date(start_datetime, unit = "day")) %>%
+           filter(year(start) == 2020) %>%
+           mutate(w_day = weekdays(start))
+
+actual_calendar <- ical_parse_df(file = "/Users/dariodidi/Downloads/ACTUAL_amherst.edu_34d3p7rivsho5hdmt11glinu70@group.calendar.google.com.ics") %>%
+   mutate(start_datetime = with_tz(start, tzone = "America/New_York")
+                   , end_datetime = with_tz(end, tzone = "America/New_York")
+                   , length_sec = end_datetime - start_datetime
+                   , length_min = length_sec/60
+                   , length_hrs = length_min/60
+                   , date = floor_date(start_datetime, unit = "day")) %>%
+            filter(year(start) == 2020  & month(start) >3) %>%
+           group_by (summary) %>%
+           summarize(N = sum(length_hrs)) %>%
+           mutate(state = "actual")
+
+```  
+
+```{r}
+#Calendar from a week in Frebruary - Pre-Corona
+feb_cal <- ical_parse_df(file = "/Users/dariodidi/Downloads/ddidi20@amherst.edu.ics") %>%
+           mutate(start_datetime = with_tz(start, tzone = "America/New_York")
+                 , end_datetime = with_tz(end, tzone = "America/New_York")
+                 , length_sec = end_datetime - start_datetime
+                 , length_min = length_sec/60
+                 , length_hrs = length_min/60
+                 , date = floor_date(start_datetime, unit = "day")) %>%
+           filter(year(start) == 2020 & month(start) == 2) %>%
+           group_by (summary) %>%
+           summarize(N = sum(length_hrs))
+
+
+
+#plot for week of February 2020 pre-COVID-19
+ggplot(feb_cal, aes(x = reorder(summary,N),
+                    y = N,
+                    fill = summary)) +
+       geom_bar(stat = "identity", show.legend = FALSE) +
+       labs(x = NULL, y = "Length in hours") +
+       coord_flip()
+
+```
+
+```{r}
+#Calendar from a week in Apr/May - Post-COVID-19
+apr_cal <- ical_parse_df(file = "/Users/dariodidi/Downloads/ddidi20@amherst.edu.ics") %>%
+            mutate(start_datetime = with_tz(start, tzone = "America/New_York")
+                   , end_datetime = with_tz(end, tzone = "America/New_York")
+                   , length_sec = end_datetime - start_datetime
+                   , length_min = length_sec/60
+                   , length_hrs = length_min/60
+                   , date = floor_date(start_datetime, unit = "day")) %>%
+            filter(year(start) == 2020  & month(start) >3) %>%
+            group_by (summary) %>%
+            summarize(N = sum(length_hrs)) %>%
+            mutate(state = "planned")
+
+
+
+#plot for a week in Apr/May
+ggplot(apr_cal, aes(x = reorder(summary,N),
+                    y = N,
+                    fill = summary)) +
+       geom_col(show.legend = FALSE) +
+       labs(x = NULL, y = "Length in hours") +
+       coord_flip()
+
+
+
+```
+\newpage
+> Question: How did my planned times differ before self-isolation/remote learning as compared to during self-isolation?
+> ANSWER:
+My calendar had way fewer items during the pandemic period.
+Some items like sleep and Rest adn Relaxation (RnR) were assigned more time during the pandemic. 
+A simple sum of time allocated showed that more hours of the week were allocated activities pre-pandemic than during the pandemic.(~ 14hrs more)
+
+
+
+```{r}
+#full calendar with both weeks
+my_cal <- ical_parse_df(file = "/Users/dariodidi/Downloads/ddidi20@amherst.edu.ics")%>%
+          mutate(start_datetime = with_tz(start, tzone = "America/New_York")
+                   , end_datetime = with_tz(end, tzone = "America/New_York")
+                   , length_sec = end_datetime - start_datetime
+                   , length_min = length_sec/60
+                   , length_hrs = length_min/60
+                   , date = floor_date(start_datetime, unit = "day")) %>%
+            filter(year(start) == 2020 ) %>%
+            filter(month(start) == 2 | month(start) >3) %>%
+            mutate(my_month = case_when(
+              month(start) == 2 ~ "February",
+              month(start) > 3 ~ "April/May"
+              )
+            )  %>%
+  group_by(summary, my_month) %>%
+  summarize(N = sum(length_hrs))
+
+#plot comparing the two weeks before and after the start of sefl-isolation and remote learning
+ggplot(my_cal, aes(x = reorder(summary,N),
+                    y = N,
+                    fill = summary)) +
+      geom_col(show.legend = FALSE) +
+      labs(x = NULL, y = "Length in hours") +
+      facet_wrap(~ my_month, ncol = 2, scales = "free") +
+      coord_flip()
+
+
+my_cal %>% group_by(my_month) %>%
+  summarize(Num_hrs = sum(N))
+```
+
+\newpage
+
+> Question: How did my planned times differ between days?
+> ANSWER: Monday and Tuesday were my busiest days with Friday being the least busy
+
+```{r}
+#data by day  
+day_plot <- ical_parse_df(file = "/Users/dariodidi/Downloads/ddidi20@amherst.edu.ics")%>%
+               mutate(start_datetime = with_tz(start, tzone = "America/New_York")
+                   , end_datetime = with_tz(end, tzone = "America/New_York")
+                   , length_sec = end_datetime - start_datetime
+                   , length_min = length_sec/60
+                   , length_hrs = length_min/60
+                   , date = floor_date(start_datetime, unit = "day")) %>%
+               filter(year(start) == 2020 ) %>%
+               filter(month(start) == 2 | month(start) >3) %>%
+               mutate(my_month = case_when(
+                   month(start) == 2 ~ "February",
+                   month(start) > 3 ~ "April/May"
+              
+              )
+            )  %>%
+                     mutate(w_day = weekdays(start))   %>%
+                     group_by(summary, w_day) %>%
+                     summarize(N = sum(length_hrs)) %>%
+                     filter(summary != "Sleep") %>%  
+                     filter(summary!= "RnR") #removed sleep and RnR when considering level of "busy"
+
+
+# bar plot of calendar events by day
+#ggplot(day_plot, aes(x = reorder(summary,N),
+                   # y = N,
+                    #fill = w_day)) +
+     # geom_col(show.legend = FALSE) +
+      #labs(x = NULL, y = "Length in hours") +
+      #facet_wrap(~w_day, ncol = 3, scales = "free") +
+      #coord_flip() 
+
+#pie charts of different days and activities   
+ggplot(day_plot, aes(x = 1,
+                    color = summary ,
+                    fill = summary )) +
+      geom_bar() +
+      coord_polar(theta = "y", start = 0) +
+      facet_wrap(~w_day, ncol = 2)
+
+
+day_plot %>% group_by(w_day) %>%
+  summarize(nhours = sum(N))
+```
+
+
+```{r}
+#Comparison on time planned for activities other than sleep day to day 
+day_comparison <- day_plot %>%
+  filter(summary != "Sleep") %>%
+  group_by(w_day) %>%
+  summarize( Num = sum(N))
+
+ggplot(day_comparison, aes(x = reorder(w_day,Num),
+                    y = Num,
+                    fill = w_day)) +
+      geom_col(show.legend = FALSE) +
+      labs(x = NULL, y = "Day of the week") +
+      #acet_wrap(~w_day, ncol = 4, scales = "free") +
+      coord_flip()
+  
+
+```
+
+\newpage
+> Question: How did my planned times differfrom actaul time spent on activities?
+> ANSWER: Planned time seemed to have been an underestimation of time required as I spent more time finishing most of  my homework assignemnts than I had planned. A lot of it was because I combined allocated meal time with homework completion thus there was overlap. Dinner and lunch times were also slightly shorter due to a few skipped meals here and there.
+
+
+```{r}
+actual_cal <- ical_parse_df(file = "/Users/dariodidi/Downloads/ACTUAL_amherst.edu_34d3p7rivsho5hdmt11glinu70@group.calendar.google.com.ics") %>%
+   mutate(start_datetime = with_tz(start, tzone = "America/New_York")
+                   , end_datetime = with_tz(end, tzone = "America/New_York")
+                   , length_sec = end_datetime - start_datetime
+                   , length_min = length_sec/60
+                   , length_hrs = length_min/60
+                   , date = floor_date(start_datetime, unit = "day")) %>%
+            filter(year(start) == 2020  & month(start) >3) %>%
+           group_by (summary) %>%
+           summarize(N = sum(length_hrs)) %>%
+           mutate(state = "actual")
+
+
+
+#plot for Apr/May
+ggplot(actual_cal, aes(x = reorder(summary,N),
+                    y = N,
+                    fill = summary)) +
+      geom_col(show.legend = FALSE) +
+      labs(x = NULL, y = "Length in hours") +
+      coord_flip()
+
+
+
+
+comparison_cal <- full_join(apr_cal, actual_cal)
+
+ggplot(comparison_cal, aes(x = reorder(summary,N),
+                    y = N,
+                    fill = summary)) +
+      geom_col(show.legend = FALSE) +
+      labs(x = NULL, y = "Length in hours") +
+      facet_wrap(~state, ncol = 2, scales = "free")+
+      coord_flip()
+
+
+hwks <- c("French hwk", "Stats231 hwk", "Sports psych hwk", "SportsPsych hwk", "Sports psych hwk", "CogNeuro hwk")
+
+#total amount of time spent on homework 
+comparison_cal %>% filter(summary %in% hwks) %>%
+  group_by(state) %>%
+  summarize(mySum = sum(N))
+      
+      
+```
+
+> Reflection: The whole process was much more fun than previous assignments because of the personal aspect to it. I gt the chance to actually use the skills I learnt in this class to analyze my dat-to-day. It was also amazing feeling how much easier it was to debug and find solutions for wht I wanted to do from the internet. Definitely an improvement from day1!
